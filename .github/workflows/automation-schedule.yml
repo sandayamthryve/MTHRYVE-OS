@@ -1,0 +1,468 @@
+name: automation-schedule
+
+# ─────────────────────────────────────────────────────────────────────────────
+# THE automation scheduler (replaces GitHub Actions).
+#
+# WHY THIS EXISTS: GitHub Actions was the ONLY scheduler driving every automation route.
+# The GitHub Actions cloud workspace was deleted ("No active workspace") — the last
+# successful sync wrote 2026-07-28 22:04Z, and with GitHub Actions gone NOTHING fires:
+# tiktok_shop_performance silently stops updating and every downstream GMV
+# surface goes stale without a single error. This workflow is the replacement
+# driver. It is plan-independent (like auth-heartbeat.yml — Vercel Hobby rejects
+# sub-daily cron at deploy-parse time, so the schedule cannot live in vercel.json)
+# and it FAILS LOUDLY: a non-2xx from any route turns the run RED in the Actions
+# tab, which IS the alert. A silent green check on a failed sync is the exact
+# failure mode we are engineering out.
+#
+# It also gives the CEO a no-terminal "Run now" button: workflow_dispatch below.
+#
+# ── KNOWN GITHUB ACTIONS LIMITATIONS (handled, not ignored) ──────────────────
+#  1. AUTO-DISABLE AFTER 60 DAYS OF NO COMMITS. GitHub automatically disables
+#     `schedule` triggers in a repository that has had NO commit activity for
+#     60 days. If that happens, NONE of these jobs fire (including `staleness`),
+#     and the only symptom is silence. Mitigations:
+#       • This repo is actively committed to, so the 60-day clock rarely gets
+#         close — but do not rely on that alone.
+#       • The `staleness` job (below) turns a dead scheduler into a RED check by
+#         asserting the data itself is fresh, not just that a job "ran".
+#       • If runs stop appearing here, re-enable the workflow: GitHub UI →
+#         Actions → automation-schedule → "Enable workflow", or push any commit.
+#         See docs/INTEGRATION_PLAN.md (Automation drivers).
+#  2. SCHEDULED RUNS ARE BEST-EFFORT AND CAN BE DELAYED. Under GitHub load a
+#     `schedule` tick can drift several minutes or, rarely, be skipped. These are
+#     daily jobs with generous windows, so drift is tolerable; the `staleness`
+#     job tolerates up to 2 days behind before going red, which absorbs a single
+#     missed tick without a false alarm.
+#
+# ── SECRETS REQUIRED (GitHub → Settings → Secrets and variables → Actions) ───
+#   AUTOMATION_API_KEY        — Bearer key the automation routes accept (the same
+#                               "Mthryve OS Automation Key" GitHub Actions used to hold).
+#   SUPABASE_URL              — the project URL, e.g. https://<ref>.supabase.co
+#                               (same value as NEXT_PUBLIC_SUPABASE_URL). Used
+#                               ONLY by the read-only `staleness` freshness probe.
+#   SUPABASE_SERVICE_ROLE_KEY — service-role key, used ONLY by `staleness` to read
+#                               max(stat_date) across all orgs (the table is
+#                               org-scoped RLS, so a scoped/anon key sees nothing).
+#                               The sync jobs never get this key — they only send
+#                               the bearer to the routes, exactly like GitHub Actions did.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # Times are UTC. Manila is UTC+8, so these land at 06:00 / 06:20 / 06:40 /
+    # 06:50 Asia/Manila. Staggered so the rollup reads freshly-landed rows and
+    # products syncs after the shop/perf tokens are warm.
+    - cron: "0 22 * * *"   # tiktok-sync     → 06:00 Manila
+    - cron: "20 22 * * *"  # metrics-rollup  → 06:20 Manila
+    - cron: "25 22 * * *"  # metric-briefs   → 06:25 Manila (after the rollup)
+    - cron: "40 22 * * *"  # products-sync   → 06:40 Manila
+    - cron: "50 22 * * *"  # staleness probe → 06:50 Manila
+    - cron: "0 0 * * *"    # approval-sweep  → 08:00 Manila daily (escalation + outcome report-back)
+    - cron: "0 23 * * 0"   # scoreboard      → 07:00 Manila every MONDAY (weekly Growth Scoreboard digest)
+  # Manual "Run now" — no terminal needed. Pick a single job or leave it on
+  # "all" to run the whole daily sequence on demand from the Actions tab.
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Which job to run"
+        type: choice
+        default: all
+        options:
+          - all
+          - tiktok-sync
+          - metrics-rollup
+          - metric-briefs
+          - products-sync
+          - staleness
+          - approval-sweep
+          - scoreboard
+      staleness_threshold_days:
+        description: "staleness: fail if tiktok_shop_performance is more than N days behind today (default 2; set 0 to force a RED drill)"
+        type: string
+        default: "2"
+
+# Least privilege: these jobs only call out over HTTPS; they never touch repo
+# contents. (A scheduled workflow still needs repo commit activity to stay
+# enabled — see the 60-day note in the header — but the token stays read-only.)
+permissions:
+  contents: read
+
+env:
+  # Overridable without a code change if the deployment ever moves.
+  PROD_BASE_URL: https://mthryve-os.vercel.app
+
+jobs:
+  # ── 06:00 Manila — the daily TikTok Shop read-sync (writes tiktok_shop_performance). ──
+  tiktok-sync:
+    name: tiktok-sync (06:00 Manila)
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '0 22 * * *') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'tiktok-sync'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: POST /api/integrations/tiktok/sync
+        env:
+          AUTOMATION_API_KEY: ${{ secrets.AUTOMATION_API_KEY }}
+          ROUTE: /api/integrations/tiktok/sync
+          JOB_LABEL: tiktok-sync
+        run: |
+          set -euo pipefail
+
+          if [ -z "${AUTOMATION_API_KEY:-}" ]; then
+            echo "::error::AUTOMATION_API_KEY secret is not set — cannot authenticate ${JOB_LABEL}."
+            exit 1
+          fi
+
+          url="${PROD_BASE_URL}${ROUTE}"
+          echo "POST ${url}"
+
+          # Capture body + HTTP status in one call. We deliberately do NOT let
+          # curl swallow the failure: -f/--fail is NOT used so we can read the
+          # body on a non-2xx and echo it into the log. We fail the job below on
+          # any non-2xx — a silent green check on a failed sync is the exact
+          # failure this workflow exists to prevent.
+          http_status=$(curl -sS -m 300 -X POST \
+            -H "Authorization: Bearer ${AUTOMATION_API_KEY}" \
+            -o response.json -w "%{http_code}" \
+            "${url}") || {
+              echo "::error::curl failed to reach ${url}"
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          echo "Response body:"
+          cat response.json || true
+          echo
+
+          if [ "${http_status}" -lt 200 ] || [ "${http_status}" -ge 300 ]; then
+            echo "::error::${JOB_LABEL} returned non-2xx (${http_status}) — sync FAILED."
+            exit 1
+          fi
+
+          echo "${JOB_LABEL} OK (${http_status})."
+
+  # ── 06:20 Manila — department-health rollup (folds fresh signals into metrics_snapshots). ──
+  metrics-rollup:
+    name: metrics-rollup (06:20 Manila)
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '20 22 * * *') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'metrics-rollup'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: POST /api/automation/metrics-rollup
+        env:
+          AUTOMATION_API_KEY: ${{ secrets.AUTOMATION_API_KEY }}
+          ROUTE: /api/automation/metrics-rollup
+          JOB_LABEL: metrics-rollup
+        run: |
+          set -euo pipefail
+
+          if [ -z "${AUTOMATION_API_KEY:-}" ]; then
+            echo "::error::AUTOMATION_API_KEY secret is not set — cannot authenticate ${JOB_LABEL}."
+            exit 1
+          fi
+
+          url="${PROD_BASE_URL}${ROUTE}"
+          echo "POST ${url}"
+
+          http_status=$(curl -sS -m 300 -X POST \
+            -H "Authorization: Bearer ${AUTOMATION_API_KEY}" \
+            -o response.json -w "%{http_code}" \
+            "${url}") || {
+              echo "::error::curl failed to reach ${url}"
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          echo "Response body:"
+          cat response.json || true
+          echo
+
+          if [ "${http_status}" -lt 200 ] || [ "${http_status}" -ge 300 ]; then
+            echo "::error::${JOB_LABEL} returned non-2xx (${http_status}) — rollup FAILED."
+            exit 1
+          fi
+
+          echo "${JOB_LABEL} OK (${http_status})."
+
+  # ── 06:25 Manila — Mission Control AI blurbs (WHY/IMPACT) → metric_brief_cache. ──
+  # Regenerates the per-metric blurbs with the cheapest model and upserts them so
+  # the dashboard render reads the cache instead of ever calling the model. Runs
+  # just after metrics-rollup so it reasons over freshly-landed figures. A model
+  # rate-cap / timeout here fails this job RED but never touches the dashboard —
+  # the last cached blurbs keep serving (aging) while figures stay live.
+  metric-briefs:
+    name: metric-briefs (06:25 Manila)
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '25 22 * * *') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'metric-briefs'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: POST /api/automation/metric-briefs
+        env:
+          AUTOMATION_API_KEY: ${{ secrets.AUTOMATION_API_KEY }}
+          ROUTE: /api/automation/metric-briefs
+          JOB_LABEL: metric-briefs
+        run: |
+          set -euo pipefail
+
+          if [ -z "${AUTOMATION_API_KEY:-}" ]; then
+            echo "::error::AUTOMATION_API_KEY secret is not set — cannot authenticate ${JOB_LABEL}."
+            exit 1
+          fi
+
+          url="${PROD_BASE_URL}${ROUTE}"
+          echo "POST ${url}"
+
+          http_status=$(curl -sS -m 300 -X POST \
+            -H "Authorization: Bearer ${AUTOMATION_API_KEY}" \
+            -o response.json -w "%{http_code}" \
+            "${url}") || {
+              echo "::error::curl failed to reach ${url}"
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          echo "Response body:"
+          cat response.json || true
+          echo
+
+          if [ "${http_status}" -lt 200 ] || [ "${http_status}" -ge 300 ]; then
+            echo "::error::${JOB_LABEL} returned non-2xx (${http_status}) — brief refresh FAILED."
+            exit 1
+          fi
+
+          echo "${JOB_LABEL} OK (${http_status})."
+
+  # ── 06:40 Manila — TikTok product-identity sync (fills public.products / SKUs). ──
+  products-sync:
+    name: products-sync (06:40 Manila)
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '40 22 * * *') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'products-sync'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: POST /api/automation/products
+        env:
+          AUTOMATION_API_KEY: ${{ secrets.AUTOMATION_API_KEY }}
+          ROUTE: /api/automation/products
+          JOB_LABEL: products-sync
+        run: |
+          set -euo pipefail
+
+          if [ -z "${AUTOMATION_API_KEY:-}" ]; then
+            echo "::error::AUTOMATION_API_KEY secret is not set — cannot authenticate ${JOB_LABEL}."
+            exit 1
+          fi
+
+          url="${PROD_BASE_URL}${ROUTE}"
+          echo "POST ${url}"
+
+          http_status=$(curl -sS -m 300 -X POST \
+            -H "Authorization: Bearer ${AUTOMATION_API_KEY}" \
+            -o response.json -w "%{http_code}" \
+            "${url}") || {
+              echo "::error::curl failed to reach ${url}"
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          echo "Response body:"
+          cat response.json || true
+          echo
+
+          if [ "${http_status}" -lt 200 ] || [ "${http_status}" -ge 300 ]; then
+            echo "::error::${JOB_LABEL} returned non-2xx (${http_status}) — products sync FAILED."
+            exit 1
+          fi
+
+          echo "${JOB_LABEL} OK (${http_status})."
+
+  # ── 06:50 Manila — dead-scheduler tripwire. ──────────────────────────────────
+  # A dead or auto-disabled scheduler is otherwise SILENT: the last good rows
+  # just sit there and every GMV surface quietly goes stale. This job reads the
+  # freshest stat_date in tiktok_shop_performance and FAILS (red check) when the
+  # data is more than THRESHOLD days behind today (Asia/Manila). So a scheduler
+  # that stops firing surfaces as a red check instead of silence.
+  #
+  # NOTE ON THE SELF-REFERENCE: if the whole workflow is auto-disabled (the
+  # 60-day rule) this job cannot run either — that is why the app also has its
+  # own in-product watchdog (/api/automation/sync-health-check) that alerts
+  # leadership independently. This job is the belt; that route is the suspenders.
+  staleness:
+    name: staleness (06:50 Manila)
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '50 22 * * *') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'staleness'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Assert tiktok_shop_performance is fresh
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Empty on a schedule run → the shell default (2) applies. On manual
+          # dispatch, set 0 to force a RED drill and prove the tripwire works.
+          THRESHOLD_INPUT: ${{ inputs.staleness_threshold_days }}
+        run: |
+          set -euo pipefail
+
+          threshold="${THRESHOLD_INPUT:-2}"
+          # Guard against an empty string sneaking through on a schedule event.
+          if ! printf '%s' "${threshold}" | grep -Eq '^[0-9]+$'; then
+            threshold=2
+          fi
+
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+            echo "::error::SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY secrets are not set — cannot check freshness."
+            exit 1
+          fi
+
+          # PostgREST: newest stat_date. tiktok_shop_performance is org-scoped RLS,
+          # so this read needs the service-role key to see across all orgs.
+          req="${SUPABASE_URL%/}/rest/v1/tiktok_shop_performance?select=stat_date&order=stat_date.desc&limit=1"
+          http_status=$(curl -sS -m 30 \
+            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+            -o freshness.json -w "%{http_code}" \
+            "${req}") || {
+              echo "::error::curl failed to reach Supabase REST for the freshness check"
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          echo "Response body:"
+          cat freshness.json || true
+          echo
+
+          if [ "${http_status}" -lt 200 ] || [ "${http_status}" -ge 300 ]; then
+            echo "::error::freshness query returned non-2xx (${http_status})."
+            exit 1
+          fi
+
+          max_date=$(python3 -c "import json;d=json.load(open('freshness.json'));print(d[0]['stat_date'] if isinstance(d,list) and d else '')")
+          if [ -z "${max_date}" ]; then
+            echo "::error::tiktok_shop_performance returned NO rows — the table is empty or the query failed. Treating as STALE."
+            exit 1
+          fi
+
+          # "today" in Asia/Manila (UTC+8) — stat_date is a Manila calendar day.
+          today=$(python3 -c "import datetime;print((datetime.datetime.utcnow()+datetime.timedelta(hours=8)).date().isoformat())")
+          behind=$(python3 -c "import datetime,sys;a=datetime.date.fromisoformat(sys.argv[1]);b=datetime.date.fromisoformat(sys.argv[2]);print((b-a).days)" "${max_date}" "${today}")
+
+          echo "max(stat_date)=${max_date}  today(Manila)=${today}  days_behind=${behind}  threshold=${threshold}"
+
+          if [ "${behind}" -gt "${threshold}" ]; then
+            echo "::error::tiktok_shop_performance is ${behind} day(s) behind (> ${threshold}). The scheduler may be dead — sync is NOT running."
+            exit 1
+          fi
+
+          echo "Fresh: ${behind} day(s) behind (<= ${threshold})."
+
+  # ── 08:00 Manila daily — the Approval Routing agent's closing loop. ──────────
+  # Two passes over action_requests, per org:
+  #   • ESCALATE requests still pending past APPROVAL_ESCALATION_HOURS (route
+  #     default 48h) — a warning-severity nudge to exactly the roles that may
+  #     decide them (de-duped in-app so the daily re-fire never stacks).
+  #   • REPORT BACK terminal outcomes (approved / executed / rejected / failed /
+  #     expired / cancelled) from the last 24h to the user who FILED the request
+  #     — unless they decided it themselves.
+  # Neither pass decides or executes anything; every decision still flows
+  # through the spine. A non-2xx turns this job RED (doctrine #10).
+  approval-sweep:
+    name: approval-sweep (08:00 Manila)
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'approval-sweep'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: POST /api/automation/approval-sweep
+        env:
+          AUTOMATION_API_KEY: ${{ secrets.AUTOMATION_API_KEY }}
+          ROUTE: /api/automation/approval-sweep
+          JOB_LABEL: approval-sweep
+        run: |
+          set -euo pipefail
+
+          if [ -z "${AUTOMATION_API_KEY:-}" ]; then
+            echo "::error::AUTOMATION_API_KEY secret is not set — cannot authenticate ${JOB_LABEL}."
+            exit 1
+          fi
+
+          url="${PROD_BASE_URL}${ROUTE}"
+          echo "POST ${url}"
+
+          http_status=$(curl -sS -m 300 -X POST \
+            -H "Authorization: Bearer ${AUTOMATION_API_KEY}" \
+            -o response.json -w "%{http_code}" \
+            "${url}") || {
+              echo "::error::curl failed to reach ${url}"
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          echo "Response body:"
+          cat response.json || true
+          echo
+
+          if [ "${http_status}" -lt 200 ] || [ "${http_status}" -ge 300 ]; then
+            echo "::error::${JOB_LABEL} returned non-2xx (${http_status}) — sweep FAILED."
+            exit 1
+          fi
+
+          echo "${JOB_LABEL} OK (${http_status})."
+
+  # ── 07:00 Manila MONDAY — the weekly Growth Scoreboard digest. ───────────────
+  # Computes the org's playbook KPIs live from the scoreboard engine (the SAME
+  # numbers the /scoreboard page renders — lib/vesper/scoreboard.ts) and drops a
+  # leadership bell with the top line: brands under management, GMV, ROAS,
+  # agency revenue, concentration risk, retention. Honest em-dashes for anything
+  # not yet measurable. Tony's weekly cockpit, delivered instead of awaited.
+  scoreboard:
+    name: scoreboard (Mon 07:00 Manila)
+    if: >-
+      (github.event_name == 'schedule' && github.event.schedule == '0 23 * * 0') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'scoreboard'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: POST /api/automation/scoreboard
+        env:
+          AUTOMATION_API_KEY: ${{ secrets.AUTOMATION_API_KEY }}
+          ROUTE: /api/automation/scoreboard
+          JOB_LABEL: scoreboard
+        run: |
+          set -euo pipefail
+
+          if [ -z "${AUTOMATION_API_KEY:-}" ]; then
+            echo "::error::AUTOMATION_API_KEY secret is not set — cannot authenticate ${JOB_LABEL}."
+            exit 1
+          fi
+
+          url="${PROD_BASE_URL}${ROUTE}"
+          echo "POST ${url}"
+
+          http_status=$(curl -sS -m 300 -X POST \
+            -H "Authorization: Bearer ${AUTOMATION_API_KEY}" \
+            -o response.json -w "%{http_code}" \
+            "${url}") || {
+              echo "::error::curl failed to reach ${url}"
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          echo "Response body:"
+          cat response.json || true
+          echo
+
+          if [ "${http_status}" -lt 200 ] || [ "${http_status}" -ge 300 ]; then
+            echo "::error::${JOB_LABEL} returned non-2xx (${http_status}) — scoreboard digest FAILED."
+            exit 1
+          fi
+
+          echo "${JOB_LABEL} OK (${http_status})."

@@ -1,0 +1,126 @@
+(function(){
+  'use strict';
+  if(!window.THREE || !window.Tony3D || !Tony3D.ok || !Tony3D.planetTexture || !Tony3D.buildSunMaterial){
+    parent.postMessage({source:'dashboard-planet-preview',ready:false},location.origin);
+    return;
+  }
+
+  Tony3D.unmount();
+  var hidden=document.getElementById('tstage');
+  if(hidden) hidden.remove();
+
+  var PLANETS=[
+    {name:'Commerce',kind:'terran',color:0x55d98a,ring:false,seed:13},
+    {name:'Finance',kind:'icegiant',color:0x55d98a,ring:false,seed:90},
+    {name:'Creative',kind:'jovian',color:0xf5b942,ring:false,seed:167},
+    {name:'Affiliate',kind:'lava',color:0xa78bfa,ring:false,seed:244},
+    {name:'Trend · CSI',kind:'martian',color:0xf5b942,ring:false,seed:321},
+    {name:'Customer Care',kind:'ocean',color:0x2dd4bf,ring:false,seed:398},
+    {name:'Live Selling',kind:'venusian',color:0xf472b6,ring:false,seed:475},
+    {name:'Warehouse',kind:'mercurial',color:0x5aa9e6,ring:false,seed:552},
+    {name:'Reporting',kind:'europan',color:0x5aa9e6,ring:false,seed:629},
+    {name:'Leads',kind:'canyon',color:0x5aa9e6,ring:false,seed:706},
+    {name:'Governance',kind:'saturnian',color:0xf5b942,ring:true,seed:783},
+    {name:'Memory',kind:'carbon',color:0xa78bfa,ring:false,seed:860},
+    {name:'Knowledge',kind:'uranian',color:0xa78bfa,ring:true,seed:937},
+    {name:'Calendar',kind:'hazy',color:0x5aa9e6,ring:false,seed:1014}
+  ];
+
+  var canvas=document.getElementById('preview');
+  var renderer=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true,premultipliedAlpha:true});
+  renderer.setClearColor(0x000000,0);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  if(THREE.sRGBEncoding) renderer.outputEncoding=THREE.sRGBEncoding;
+  if(THREE.ACESFilmicToneMapping) renderer.toneMapping=THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.12;
+
+  var scene=new THREE.Scene();
+  var camera=new THREE.PerspectiveCamera(38,1,0.1,50);
+  scene.add(new THREE.HemisphereLight(0x33406b,0x0b1020,0.82));
+  var key=new THREE.DirectionalLight(0xfff0cf,1.42);key.position.set(-3.2,4.2,5.5);scene.add(key);
+  var fill=new THREE.DirectionalLight(0x6f8fc9,0.38);fill.position.set(4,-2,3);scene.add(fill);
+
+  var group=new THREE.Group();scene.add(group);
+  var activeName='Tony',sunUni=null,last=performance.now();
+
+  function fresnel(hex,radius,intensity,power){
+    var mat=new THREE.ShaderMaterial({
+      uniforms:{glowColor:{value:new THREE.Color(hex)},intensity:{value:intensity}},
+      vertexShader:'varying vec3 vN;varying vec3 vV;void main(){vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.0);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}',
+      fragmentShader:'uniform vec3 glowColor;uniform float intensity;varying vec3 vN;varying vec3 vV;void main(){float rim=pow(1.0-max(dot(normalize(vN),normalize(vV)),0.0),'+Number(power).toFixed(1)+');gl_FragColor=vec4(glowColor,rim*intensity);}',
+      transparent:true,blending:THREE.AdditiveBlending,depthWrite:false
+    });
+    return new THREE.Mesh(new THREE.SphereGeometry(radius,32,32),mat);
+  }
+
+  function disposeObject(obj){
+    if(obj.geometry) obj.geometry.dispose();
+    if(obj.material){
+      var mats=Array.isArray(obj.material)?obj.material:[obj.material];
+      mats.forEach(function(m){
+        ['map','emissiveMap'].forEach(function(k){if(m[k]&&m[k].dispose)m[k].dispose();});
+        if(m.dispose)m.dispose();
+      });
+    }
+    if(obj.children) obj.children.forEach(disposeObject);
+  }
+
+  function clear(){
+    while(group.children.length){var child=group.children.pop();disposeObject(child);}
+    sunUni=null;
+  }
+
+  function renderPlanet(name){
+    activeName=name||'Tony';clear();
+    group.rotation.set(0,0,0);
+    if(activeName==='Tony'){
+      var sun=Tony3D.buildSunMaterial();sunUni=sun.uni;
+      var sunMesh=new THREE.Mesh(new THREE.SphereGeometry(1,64,64),sun.mat);
+      group.add(sunMesh);
+      group.add(fresnel(0xffc46a,1.055,0.74,2.6));
+      camera.position.set(0,0.08,3.15);
+    }else{
+      var p=PLANETS.find(function(x){return x.name===activeName;})||PLANETS[0];
+      var idx=PLANETS.indexOf(p);
+      var tex=Tony3D.planetTexture(p.kind,p.color,p.seed);
+      var params={map:tex.map,roughness:0.88,metalness:0.03,transparent:true,opacity:1};
+      if(tex.emissiveMap){params.emissiveMap=tex.emissiveMap;params.emissive=new THREE.Color(0xffffff);params.emissiveIntensity=1.15;}
+      if(p.kind==='europan'||p.kind==='icegiant')params.roughness=0.62;
+      if(p.kind==='carbon')params.roughness=0.97;
+      var mesh=new THREE.Mesh(new THREE.SphereGeometry(1,48,48),new THREE.MeshStandardMaterial(params));
+      mesh.rotation.z=(idx%5-2)*0.12;
+      group.add(mesh);
+      var atmosphere={terran:.34,ocean:.36,venusian:.40,hazy:.32,icegiant:.26,uranian:.24,saturnian:.20,jovian:.20,lava:.18};
+      var atmosphereStrength=atmosphere[p.kind]===undefined ? .08 : atmosphere[p.kind];
+      group.add(fresnel(p.color,1.10,atmosphereStrength,3.0));
+      if(p.ring){
+        var ring=new THREE.Mesh(new THREE.RingGeometry(1.5,2.35,96),new THREE.MeshBasicMaterial({color:p.color,transparent:true,opacity:.36,side:THREE.DoubleSide,depthWrite:false}));
+        if(p.kind==='uranian'){ring.rotation.x=.12;ring.rotation.y=.35;}else{ring.rotation.x=Math.PI/2.35;ring.rotation.z=-.28;}
+        group.add(ring);
+      }
+      camera.position.set(0,0.12,p.ring?5.15:3.25);
+    }
+    camera.lookAt(0,0,0);
+  }
+
+  function resize(){
+    var w=Math.max(1,canvas.clientWidth),h=Math.max(1,canvas.clientHeight);
+    renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(canvas);resize();
+
+  function frame(now){
+    var dt=Math.min(.05,(now-last)/1000);last=now;
+    group.rotation.y+=dt*(activeName==='Tony' ? .16 : .24);
+    if(sunUni){sunUni.t.value=now/1000;sunUni.pulse.value=1+.025*Math.sin(now/650);}
+    renderer.render(scene,camera);requestAnimationFrame(frame);
+  }
+
+  window.addEventListener('message',function(e){
+    if(e.origin!==location.origin||e.data?.source!=='dashboard-host')return;
+    if(typeof e.data.planet==='string')renderPlanet(e.data.planet);
+  });
+  renderPlanet('Tony');
+  requestAnimationFrame(frame);
+  parent.postMessage({source:'dashboard-planet-preview',ready:true},location.origin);
+})();

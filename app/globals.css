@@ -1,0 +1,315 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Homepage GMV sparkline bleeds past its card padding, edge to edge (see
+     "Stretch homepage GMV chart edge to edge"). This lived as an inline
+     <style> in <body>, where the server and client serialised its whitespace
+     differently and tripped a hydration mismatch on every page. Same rule,
+     same effect — just declared in the stylesheet where it belongs. The values
+     are percentage-based and cancel the card's 20px padding, so it stays
+     correct at every width.  */
+  svg[aria-label="GMV trend"] {
+    display: block;
+    width: calc(100% + 40px);
+    max-width: none;
+    margin-left: -20px;
+    overflow: hidden;
+  }
+
+  /* Responsive PWA hardening — never let a stray wide child force the whole
+     page to scroll sideways on a phone. `clip` (not `hidden`) is used so it
+     doesn't create a scroll container and therefore keeps `position: sticky`
+     working for the app-shell top bar. */
+  html {
+    overflow-x: clip;
+    max-width: 100%;
+    /* Honor the iOS/Android status-bar/notch inset color under viewport-fit=cover. */
+    background: theme("colors.obsidian");
+  }
+
+  body {
+    @apply bg-obsidian text-ink font-body antialiased;
+    /* v2 "Obsidian": ambient aurora — pure CSS, zero assets, zero cost.
+       Fixed so it sits behind all content and never scrolls away. */
+    position: relative;
+    min-height: 100vh;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  /* iOS Safari zooms the viewport when a focused form control has a font-size
+     below 16px. Force a ≥16px size for text-entry controls on phone-width
+     screens so focusing an input never triggers that jarring zoom. Buttons,
+     checkboxes, radios and range sliders are exempt (they don't trigger it). */
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* Thumb-friendly nav targets in the mobile off-canvas drawer (≥44px) without
+     disturbing the denser desktop sidebar, which shares the same SidebarNav. */
+  @media (pointer: coarse) {
+    #mobile-nav-drawer nav a,
+    #mobile-nav-drawer nav button {
+      min-height: 44px;
+    }
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(900px 500px at 8% -5%, rgba(47, 168, 160, 0.12), transparent 60%),
+      radial-gradient(800px 500px at 100% 108%, rgba(212, 169, 75, 0.08), transparent 55%);
+  }
+
+  /* Keep real content above the aurora. */
+  body > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+
+  /* Visible keyboard focus everywhere — non-negotiable for an internal ops tool used all day */
+  :focus-visible {
+    outline: 2px solid theme("colors.teal.400");
+    outline-offset: 2px;
+  }
+
+  /* Quiet, on-brand scrollbars (WebKit) */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: theme("colors.charcoal.700");
+    border-radius: 999px;
+    border: 2px solid theme("colors.obsidian");
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme("colors.charcoal.800");
+  }
+
+  /* Dev dashboard media rail: keep wheel/trackpad scrolling available when
+     content needs it, but remove the visible scrollbar on the panel edge. */
+  aside.border-dashed {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  aside.border-dashed::-webkit-scrollbar {
+    display: none;
+  }
+
+  ::selection {
+    background: rgba(47, 168, 160, 0.28);
+    color: theme("colors.ink.DEFAULT");
+  }
+}
+
+@layer components {
+  /* Shared elevated surface — a panel that lifts off the obsidian base with a
+     hairline top highlight. Opt-in: add `panel` to any card as screens migrate. */
+  .panel {
+    @apply relative rounded-lg border border-charcoal-700 shadow-elevate;
+    background: linear-gradient(180deg, theme("colors.charcoal.900"), theme("colors.charcoal.950"));
+  }
+  .panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    -webkit-mask: linear-gradient(#000, transparent 42%);
+    mask: linear-gradient(#000, transparent 42%);
+    pointer-events: none;
+  }
+
+  /* Readable long-form prose for the public legal pages (/privacy, /terms).
+     Tailwind's typography plugin isn't installed, so the reading rhythm is
+     defined here once and applied via the `legal-prose` wrapper. */
+  .legal-prose {
+    @apply text-ink-muted;
+    font-size: 0.9375rem;
+    line-height: 1.75;
+  }
+  .legal-prose .legal-eyebrow {
+    @apply font-mono text-xs uppercase tracking-[0.2em] text-teal-400;
+    margin-bottom: 0.75rem;
+  }
+  .legal-prose h1 {
+    @apply font-display text-3xl font-bold text-ink;
+    line-height: 1.15;
+    margin-bottom: 0.5rem;
+  }
+  .legal-prose .legal-effective {
+    @apply text-sm text-ink-dim;
+    margin-bottom: 2.5rem;
+  }
+  .legal-prose h2 {
+    @apply font-display text-lg font-semibold text-ink;
+    margin-top: 2.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .legal-prose h3 {
+    @apply font-display text-base font-semibold text-ink;
+    margin-top: 1.75rem;
+    margin-bottom: 0.5rem;
+  }
+  .legal-prose p {
+    margin-bottom: 1.25rem;
+  }
+  .legal-prose ul,
+  .legal-prose ol {
+    margin-bottom: 1.25rem;
+    padding-left: 1.5rem;
+  }
+  .legal-prose ul {
+    list-style: disc;
+  }
+  .legal-prose ol {
+    list-style: decimal;
+  }
+  .legal-prose li {
+    margin-bottom: 0.5rem;
+    padding-left: 0.25rem;
+  }
+  .legal-prose strong {
+    @apply font-semibold text-ink;
+  }
+  .legal-prose a {
+    @apply text-teal-400 underline underline-offset-2 transition-colors;
+  }
+  .legal-prose a:hover {
+    @apply text-teal-300;
+  }
+}
+
+/* Tony Command View — constellation motion. ONLY the visual orbits/pulses;
+   metric values are static server-rendered text and never animated. All of
+   these are neutralised by the prefers-reduced-motion block below. */
+@layer utilities {
+  /* Gentle float for the orbiting nodes; per-node phase set inline via delay.
+     Applied to an INNER wrapper (translateY only) so the outer node keeps its
+     translate(-50%,-50%) centering even when reduced-motion halts the animation. */
+  @keyframes tony-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+  /* Soft breathing halo for the Tony core. */
+  @keyframes tony-core-pulse {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.06);
+    }
+  }
+  /* Status-dot ping, speed varies with data recency (set inline). */
+  @keyframes tony-ping {
+    0% {
+      opacity: 0.7;
+      transform: scale(1);
+    }
+    70%,
+    100% {
+      opacity: 0;
+      transform: scale(2.4);
+    }
+  }
+  /* Slow rotation of the decorative orbit rings. */
+  @keyframes tony-orbit-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .tony-float {
+    animation: tony-float 6s ease-in-out infinite;
+  }
+  .tony-core-pulse {
+    animation: tony-core-pulse 4s ease-in-out infinite;
+  }
+  .tony-ping {
+    animation: tony-ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  .tony-orbit-spin {
+    animation: tony-orbit-spin 90s linear infinite;
+  }
+  /* Fade-in on mount for the whole constellation (progressive reveal). */
+  @keyframes tony-appear {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .tony-appear {
+    animation: tony-appear 0.5s ease-out both;
+  }
+
+  /* Voice orb — accent ring rotation while waking/thinking. */
+  .tony-orb-spin {
+    animation: tony-orbit-spin 3.5s linear infinite;
+  }
+
+  /* Voice orb — four equalizer bars that dance while capturing/waking. Each
+     bar's phase is offset via nth-child so it reads as live audio, not a loop. */
+  @keyframes tony-voice-bar {
+    0%,
+    100% {
+      transform: scaleY(0.35);
+    }
+    50% {
+      transform: scaleY(1);
+    }
+  }
+  .tony-voice-bars i {
+    display: block;
+    width: 3px;
+    height: 100%;
+    border-radius: 2px;
+    background: currentColor;
+    transform-origin: bottom;
+    animation: tony-voice-bar 0.9s ease-in-out infinite;
+  }
+  .tony-voice-bars i:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .tony-voice-bars i:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  .tony-voice-bars i:nth-child(4) {
+    animation-delay: 0.45s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

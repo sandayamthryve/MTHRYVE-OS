@@ -1,0 +1,200 @@
+/* Tony startup choreography. Kept out of styled-jsx's selector transform. */
+      .arrivalStatus{position:fixed;bottom:38px;left:0;right:0;z-index:80;pointer-events:none;text-align:center;color:#b9a77e;font:10px/1.5 ui-monospace,monospace;letter-spacing:.22em}
+      .tonyNS.arriving .tfDock,.tonyNS.arriving .tfIcons,.tonyNS.arriving .tfToggle,.tonyNS.arriving .thint,.tonyNS.arriving .tzoom,.tonyNS.arriving .tcapBehind{opacity:0;visibility:hidden;pointer-events:none}
+      .tonyNS:not(.arriving) .tcapBehind{animation:tonyContentReveal 0.468s ease 0.036s both !important}
+      .tonyNS:not(.arriving) .tfDock{animation:tonyContentReveal 0.504s ease 0.108s both !important}
+      .tonyNS:not(.arriving) .tfIcons,.tonyNS:not(.arriving) .tfToggle{animation:tonyContentReveal 0.432s ease 0.216s both !important}
+      .tonyNS:not(.arriving) .tzoom,.tonyNS:not(.arriving) .thint{animation:tonyContentReveal 0.432s ease 0.324s both !important}
+      @keyframes tonyContentReveal{from{opacity:0;translate:0 12px}to{opacity:1;translate:0 0}}
+      @media(prefers-reduced-motion:reduce){.tonyNS:not(.arriving) .tfDock,.tonyNS:not(.arriving) .tfIcons,.tonyNS:not(.arriving) .tfToggle,.tonyNS:not(.arriving) .thint,.tonyNS:not(.arriving) .tzoom,.tonyNS:not(.arriving) .tcapBehind{animation:none !important}}
+
+    body:has(.tonyNS.arriving) aside[aria-label="MThryve navigation"]{visibility:hidden;pointer-events:none;animation:none}
+    body:has(.tonyNS:not(.arriving)) aside[aria-label="MThryve navigation"]{animation:tonyRailReveal 0.468s ease 0.216s both}
+    @keyframes tonyRailReveal{from{opacity:0;translate:-12px 0}to{opacity:1;translate:0 0}}
+    @media(prefers-reduced-motion:reduce){body:has(.tonyNS) aside[aria-label="MThryve navigation"]{animation:none !important}}
+
+    /* Open Chat Mode is a second full-size card physically stacked ABOVE the
+       composer. Most of it sits behind the solid composer, leaving its upper
+       edge/tab visible; hover lifts it farther upward. */
+    .tonyNS .tfDock .mic{position:relative;z-index:2;isolation:isolate;background:#0d141b !important;background-image:none !important;box-shadow:0 10px 30px rgba(0,0,0,.48);overflow:visible}
+    .tonyNS .tfDock .mic::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:24px;background:#0d141b;pointer-events:none}
+    .tonyNS .tfDock .mic::before{content:"Open Chat Mode";position:absolute;left:0;right:0;top:0;height:100%;z-index:-2;display:flex;align-items:flex-start;justify-content:center;padding:7px 14px 0;box-sizing:border-box;border:1px solid rgba(167,139,250,.45);border-radius:24px;background:#11162a;box-shadow:0 10px 24px rgba(0,0,0,.42);color:#b9abf8;font:800 9px/1 ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;opacity:1;transform:translateY(-13px);transition:transform .22s cubic-bezier(.2,.8,.2,1),border-color .18s ease,box-shadow .22s ease;pointer-events:auto}
+    .tonyNS .tfDock .mic:hover::before,.tonyNS .tfDock .mic:focus-within::before{transform:translateY(-34px);border-color:rgba(167,139,250,.7);box-shadow:0 14px 32px rgba(0,0,0,.5),0 0 18px rgba(167,139,250,.08)}
+
+    /* Keep a visible air gap between Ready Tony and the rear card while preserving
+       their synchronized hover motion. */
+    .tonyNS .tfDock .orbstate{position:relative;z-index:4;margin-bottom:8px;transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+    .tonyNS .tfDock:has(.mic:hover) .orbstate,.tonyNS .tfDock:has(.mic:focus-within) .orbstate{transform:translateY(-21px)}
+    @media(prefers-reduced-motion:reduce){.tonyNS .tfDock .mic::before,.tonyNS .tfDock .orbstate{transition:none}}
+
+    /* Chat mode focus layer: darken the entire Tony scene while leaving the
+       hologram/chat HUD crisp above it. */
+    .tonyChatPortal{
+      background:linear-gradient(rgba(0,0,0,.58),rgba(0,0,0,.58)),radial-gradient(circle at 58% 48%,rgba(35,45,80,.16),transparent 42%) !important;
+      backdrop-filter:brightness(.55) blur(1px);
+      -webkit-backdrop-filter:brightness(.55) blur(1px);
+    }
+
+    /* Tony hologram avatar: reuse the existing hologram geometry, but turn the
+       cube into Tony's projected speaking presence with signal rings, scan noise,
+       a pulsing voice waveform and a faint projected bust. */
+    .tonyChatPortal .tonyHoloPod{
+      background:
+        radial-gradient(circle at 50% 47%,rgba(75,224,255,.16),rgba(20,54,76,.12) 30%,rgba(5,17,29,.72) 72%),
+        repeating-linear-gradient(180deg,rgba(124,226,255,.035) 0,rgba(124,226,255,.035) 1px,transparent 1px,transparent 5px) !important;
+      box-shadow:inset 0 0 42px rgba(75,205,255,.12),0 0 38px rgba(64,168,220,.1) !important;
+    }
+    .tonyChatPortal .tonyHoloPod::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      z-index:1;
+      pointer-events:none;
+      border-radius:50%;
+      background:
+        linear-gradient(90deg,transparent 0 17%,rgba(119,226,255,.07) 18%,transparent 19% 80%,rgba(119,226,255,.05) 81%,transparent 82%),
+        repeating-linear-gradient(0deg,transparent 0 9px,rgba(115,219,255,.035) 10px,transparent 11px);
+      mix-blend-mode:screen;
+      animation:tonySignalNoise 2.4s steps(2,end) infinite;
+    }
+    .tonyChatPortal .tonyHoloPod .holoOrbit{
+      inset:17% !important;
+      border:1px solid rgba(94,224,255,.32) !important;
+      box-shadow:0 0 14px rgba(73,203,255,.18),inset 0 0 18px rgba(73,203,255,.06) !important;
+      animation:tonySignalRing 2.8s ease-in-out infinite !important;
+    }
+    .tonyChatPortal .tonyHoloPod .holoOrbit.orbitB{
+      inset:25% !important;
+      border-style:dashed !important;
+      border-color:rgba(176,143,255,.3) !important;
+      animation:tonySignalRingB 2.2s ease-in-out .25s infinite !important;
+    }
+    .tonyChatPortal .tonyHoloPod .holoGrid{
+      opacity:.3 !important;
+      background-size:15px 15px !important;
+      filter:drop-shadow(0 0 4px rgba(83,213,255,.15));
+    }
+    .tonyChatPortal .tonyHoloPod .holoBlock{
+      left:50% !important;
+      top:45% !important;
+      width:92px !important;
+      height:112px !important;
+      border:1px solid rgba(126,232,255,.72) !important;
+      border-radius:48% 48% 43% 43%/40% 40% 58% 58% !important;
+      background:
+        linear-gradient(180deg,rgba(111,224,255,.2),rgba(56,151,198,.12) 56%,rgba(153,112,255,.08)),
+        repeating-linear-gradient(180deg,rgba(190,247,255,.08) 0,rgba(190,247,255,.08) 1px,transparent 1px,transparent 5px) !important;
+      box-shadow:
+        inset 0 0 28px rgba(95,222,255,.16),
+        0 0 28px rgba(79,207,255,.2),
+        0 0 54px rgba(93,169,255,.08) !important;
+      transform:translate(-50%,-50%) !important;
+      animation:tonyHoloFloat 3.6s ease-in-out infinite,tonyHoloGlitch 6.5s steps(1,end) infinite !important;
+      overflow:visible !important;
+      z-index:3 !important;
+    }
+    .tonyChatPortal .tonyHoloPod .holoBlock::before{
+      content:"";
+      position:absolute;
+      inset:-28px -38px;
+      border-radius:50%;
+      border:1px solid rgba(92,220,255,.18);
+      box-shadow:0 0 0 12px rgba(92,220,255,.035),0 0 0 25px rgba(92,220,255,.018);
+      animation:tonySignalPulse 1.75s ease-out infinite;
+      pointer-events:none;
+    }
+    .tonyChatPortal .tonyHoloPod .holoBlock::after{
+      content:"";
+      position:absolute;
+      left:18%;right:18%;top:13%;height:52%;
+      border-radius:46% 46% 38% 38%;
+      background:linear-gradient(180deg,rgba(186,248,255,.11),transparent 78%);
+      border-top:1px solid rgba(198,248,255,.34);
+      filter:drop-shadow(0 0 8px rgba(116,224,255,.25));
+      pointer-events:none;
+    }
+    .tonyChatPortal .tonyHoloPod .holoBlock .face{
+      display:block !important;
+      position:absolute !important;
+      border:0 !important;
+      background:none !important;
+      box-sizing:border-box !important;
+    }
+    .tonyChatPortal .tonyHoloPod .holoBlock .face.one{
+      left:20px !important;
+      right:20px !important;
+      top:37px !important;
+      height:7px !important;
+      border-radius:999px !important;
+      background:linear-gradient(90deg,#79e8ff 0 27%,transparent 28% 72%,#79e8ff 73% 100%) !important;
+      box-shadow:0 0 8px rgba(100,226,255,.8),0 0 18px rgba(100,226,255,.35) !important;
+      opacity:.9;
+      animation:tonyEyeSignal 4.6s steps(1,end) infinite !important;
+    }
+    .tonyChatPortal .tonyHoloPod .holoBlock .face.two{
+      left:23px !important;
+      right:23px !important;
+      top:67px !important;
+      height:18px !important;
+      border-radius:5px !important;
+      background:repeating-linear-gradient(90deg,rgba(124,236,255,.92) 0 2px,transparent 2px 5px) !important;
+      filter:drop-shadow(0 0 5px rgba(98,229,255,.72));
+      transform-origin:50% 50% !important;
+      animation:tonyVoiceBars .48s steps(4,end) infinite !important;
+    }
+    .tonyChatPortal .tonyHoloPod .holoBlock .face.three{
+      left:50% !important;
+      top:103px !important;
+      width:138px !important;
+      height:58px !important;
+      transform:translateX(-50%) !important;
+      clip-path:polygon(28% 0,72% 0,100% 100%,0 100%) !important;
+      background:linear-gradient(180deg,rgba(91,213,244,.16),rgba(61,130,176,.035) 72%,transparent) !important;
+      border-top:1px solid rgba(126,232,255,.28) !important;
+      box-shadow:inset 0 12px 22px rgba(80,210,244,.04) !important;
+      opacity:.82;
+    }
+    .tonyChatPortal .tonyHoloPod .holoScan{
+      left:8% !important;
+      right:8% !important;
+      z-index:5 !important;
+      height:1px !important;
+      background:#a9f1ff !important;
+      box-shadow:0 0 10px rgba(120,233,255,.95),0 0 24px rgba(120,233,255,.45) !important;
+      animation:tonyFaceScan 2.15s ease-in-out infinite !important;
+    }
+    .tonyChatPortal .tonyHoloPod .holoCaption{
+      font-size:0 !important;
+      bottom:11% !important;
+      z-index:6 !important;
+    }
+    .tonyChatPortal .tonyHoloPod .holoCaption::after{
+      content:"TONY // SIGNAL LINK";
+      font:800 9px/1 ui-monospace,monospace;
+      letter-spacing:.18em;
+      color:#77d9f2;
+      text-shadow:0 0 10px rgba(81,203,244,.7);
+      animation:tonyCaptionPulse 1.8s ease-in-out infinite;
+    }
+
+    @keyframes tonySignalNoise{0%,100%{opacity:.42;transform:translateX(0)}36%{opacity:.6;transform:translateX(1px)}37%{opacity:.26;transform:translateX(-2px)}38%{opacity:.5;transform:translateX(0)}72%{opacity:.34}}
+    @keyframes tonySignalRing{0%,100%{transform:rotateX(68deg) scale(.94);opacity:.4}50%{transform:rotateX(68deg) scale(1.08);opacity:.88}}
+    @keyframes tonySignalRingB{0%,100%{transform:rotateY(67deg) rotateZ(22deg) scale(.94);opacity:.3}50%{transform:rotateY(67deg) rotateZ(48deg) scale(1.12);opacity:.72}}
+    @keyframes tonySignalPulse{0%{opacity:.7;transform:scale(.72)}70%,100%{opacity:0;transform:scale(1.18)}}
+    @keyframes tonyHoloFloat{0%,100%{translate:0 3px;filter:brightness(.92)}50%{translate:0 -7px;filter:brightness(1.24)}}
+    @keyframes tonyHoloGlitch{0%,78%,82%,100%{clip-path:inset(0 0 0 0)}79%{clip-path:inset(17% 0 54% 0);transform:translate(-48%,-50%)}80%{clip-path:inset(55% 0 19% 0);transform:translate(-52%,-49%)}81%{clip-path:inset(0 0 0 0);transform:translate(-50%,-50%)}}
+    @keyframes tonyEyeSignal{0%,92%,100%{opacity:.94}93%{opacity:.18}94%{opacity:.9}96%{opacity:.28}97%{opacity:.94}}
+    @keyframes tonyVoiceBars{0%{transform:scaleY(.38);opacity:.65}25%{transform:scaleY(1);opacity:1}50%{transform:scaleY(.58);opacity:.82}75%{transform:scaleY(.82);opacity:.96}100%{transform:scaleY(.42);opacity:.7}}
+    @keyframes tonyFaceScan{0%,100%{top:18%;opacity:.15}45%{opacity:.95}55%{top:76%;opacity:.85}80%{opacity:.18}}
+    @keyframes tonyCaptionPulse{0%,100%{opacity:.62;text-shadow:0 0 8px rgba(81,203,244,.45)}50%{opacity:1;text-shadow:0 0 15px rgba(81,203,244,.9)}}
+
+    @media(prefers-reduced-motion:reduce){
+      .tonyChatPortal .tonyHoloPod::before,
+      .tonyChatPortal .tonyHoloPod .holoOrbit,
+      .tonyChatPortal .tonyHoloPod .holoBlock,
+      .tonyChatPortal .tonyHoloPod .holoBlock::before,
+      .tonyChatPortal .tonyHoloPod .holoBlock .face.one,
+      .tonyChatPortal .tonyHoloPod .holoBlock .face.two,
+      .tonyChatPortal .tonyHoloPod .holoScan,
+      .tonyChatPortal .tonyHoloPod .holoCaption::after{animation:none !important}
+    }

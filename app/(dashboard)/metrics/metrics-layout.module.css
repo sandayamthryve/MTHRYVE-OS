@@ -1,0 +1,24 @@
+.metricsRoute {
+  min-height: 0;
+}
+
+@media (min-width: 1024px) {
+  .metricsRoute :global(.metrics-workspace) {
+    height: min(660px, calc(100dvh - 150px)) !important;
+    min-height: 520px !important;
+  }
+
+  .metricsRoute :global(.metrics-workspace) > div > div:nth-child(2) {
+    grid-template-rows: minmax(0, 1fr) 270px !important;
+  }
+
+  .metricsRoute :global(.metrics-workspace) section {
+    padding: 12px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .metricsRoute :global(.metrics-workspace) {
+    height: 660px !important;
+  }
+}

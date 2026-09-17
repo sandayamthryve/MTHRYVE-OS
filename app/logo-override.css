@@ -1,0 +1,34 @@
+/* MThryve brand mark override for the dev-channel OS chrome.
+ *
+ * mthryve-logo.png is the full stacked lockup — the M above the word THRYVE —
+ * at 50x50, chosen deliberately over the cropped mark (mthryve-mark.png, kept
+ * beside it). Two consequences to know before changing the size here:
+ *
+ *   - The box is SQUARE to match the source. `contain` fits by the shorter
+ *     side, so a square image in the old 56x39 box would have rendered 39x39
+ *     with 17px of dead space either side — smaller, not larger. 42px is the
+ *     most the 58px header gives once its padding is accounted for.
+ *   - The source is 50px, so at 42 CSS px it is upscaled on a retina screen
+ *     (84 physical px) and the wordmark, already about 8px tall in the file,
+ *     does not survive. Enlarging the box will not sharpen it; the detail is
+ *     not in the asset. A crisper lockup needs a larger source.
+ *
+ * It lives under /icons/ because the middleware matcher already excludes that
+ * directory. A brand file at the root does NOT get excluded: /mthryve-logo.svg
+ * sat there and returned 307 to /access-denied for every non-operator scope,
+ * so the header logo was broken for HR, Finance and the rest while Operator —
+ * which short-circuits the module check — saw it fine. */
+#dev-os-chrome a[aria-label="M-THRYVE OS home"] {
+  width: 42px;
+  height: 42px;
+  border-radius: 0;
+  background: transparent url('/icons/mthryve-logo.png') center / contain no-repeat;
+  color: transparent;
+  box-shadow: none;
+  font-size: 0;
+}
+
+#dev-os-chrome a[aria-label="M-THRYVE OS home"]:hover {
+  transform: scale(1.04);
+  filter: brightness(1.06);
+}

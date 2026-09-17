@@ -1,0 +1,279 @@
+/* ===== TONY · SOLAR SYSTEM (Tony = center of the universe) ===== */
+.orbwrap{display:block}
+.cstage{background:radial-gradient(ellipse at 50% 40%,#171238 0%,#0c0a22 44%,#050510 100%);border:1px solid #241f3e;border-radius:18px;padding:8px 8px 16px;position:relative;overflow:hidden;text-align:center}
+.cstage svg{display:block;width:100%;height:auto}
+/* --- embedded 3D orbit stage (scaled to the panel, NOT full page) --- */
+.tstage{position:relative;width:100%;aspect-ratio:16/10;min-height:360px;max-height:600px;
+  border-radius:14px;overflow:hidden;background:radial-gradient(ellipse at 50% 46%,#04080f 0%,#020409 50%,#000103 100%);
+  cursor:grab;touch-action:pan-y;user-select:none;z-index:1;isolation:isolate}
+.tstage.dragging{cursor:grabbing}
+.tstage canvas{display:block;width:100%;height:100%}
+/* darker framing at the edges of the orbit stage — the asteroid field and
+   sound-wave / thinking / speaking effects live inside this dark ring */
+.tvignette{position:absolute;inset:0;pointer-events:none;z-index:3;
+  background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 38%,rgba(2,4,9,.46) 72%,rgba(1,2,5,.88) 100%);
+  box-shadow:inset 0 0 90px rgba(0,0,0,.55)}
+.tlabels{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+.tdim{position:absolute;inset:0;pointer-events:none;overflow:hidden;opacity:0;z-index:4;
+  transition:opacity .5s ease,background .5s ease;
+  background:radial-gradient(circle at var(--fx,50%) var(--fy,50%),
+    rgba(0,0,0,0) 0%,rgba(0,0,0,0) 13%,rgba(3,6,12,.55) 42%,rgba(2,4,9,.80) 70%)}
+.tdim.on{opacity:1}
+/* conv = Tony himself is listening / thinking / speaking (not a planet
+   pinned). The rest of the solar system — every other planet, the
+   asteroid field, the rings — sinks into the dark so only Tony, glowing
+   at centre, and the dock below stay legible. Wider + deeper than the
+   planet-pin dim above, since it has to clear the whole orbit field. */
+.tdim.conv{
+  background:radial-gradient(circle at var(--fx,50%) var(--fy,46%),
+    rgba(0,0,0,0) 0%,rgba(0,0,0,0) 10%,rgba(3,6,14,.62) 34%,rgba(2,4,10,.88) 62%,rgba(1,2,6,.95) 100%)}
+.tlabel{position:absolute;top:0;left:0;transform:translate(-50%,-100%);text-align:center;white-space:nowrap;
+  will-change:transform,opacity;transition:opacity .18s linear}
+/* Rajdhani (labels) + Orbitron (the sun) — scoped to the orbit stage only */
+.tstage,.tlabels{--orbf:'Rajdhani',ui-sans-serif,-apple-system,'Segoe UI',sans-serif;
+  --orbd:'Orbitron',var(--orbf)}
+.tlabel{transform:translate(-50%,0)}
+/* A 4-way 1px black outline plus a tight dark halo, THEN the accent glow.
+   The old version led with a coloured glow, which vanishes the moment the
+   text sits over the sun — glow on glow. The outline holds on any backdrop. */
+.tstage,.tlabels{--tout:1px 1px 0 rgba(0,0,0,.92),-1px 1px 0 rgba(0,0,0,.92),
+  1px -1px 0 rgba(0,0,0,.92),-1px -1px 0 rgba(0,0,0,.92),
+  0 0 3px rgba(0,0,0,.98),0 2px 5px rgba(0,0,0,1),0 0 11px rgba(0,0,0,.85)}
+.tlabel .tn{font-family:var(--orbf);font-weight:700;font-size:12px;color:#a6e9ff;
+  letter-spacing:.15em;text-transform:uppercase;line-height:1.1;
+  text-shadow:var(--tout),0 0 13px rgba(30,140,210,.7)}
+.tlabel .ts{font-family:var(--orbf);font-weight:600;font-size:8.5px;letter-spacing:.19em;
+  color:#7fb2d6;text-transform:uppercase;margin-top:-1px;text-shadow:var(--tout)}
+.tlabel.hov .tn{color:#dcf5ff;text-shadow:var(--tout),0 0 15px rgba(70,180,240,.9)}
+.tlabel.hov .ts{color:#a8d4ee}
+.tlabel.sel .tn{color:#fff;text-shadow:var(--tout),0 0 15px rgba(90,200,255,.95)}
+.tlabel.sel .ts{color:var(--teal)}
+.tlabel.core .tn{font-family:var(--orbd);font-weight:700;font-size:14px;letter-spacing:.30em;
+  text-indent:.30em;color:#ffeec2;
+  text-shadow:var(--tout),0 0 4px rgba(0,0,0,.95),0 0 18px rgba(255,160,40,.65)}
+.tmeta{position:absolute;top:9px;left:11px;font-family:var(--orbf);font-size:10px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:#5b7fa8;pointer-events:none;z-index:6}
+.thint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-family:var(--orbf);
+  font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#5b7fa8;
+  pointer-events:none;transition:opacity .3s;z-index:6}
+.thint b{color:#aab0d4}
+.tzoom{position:absolute;bottom:8px;right:9px;display:flex;gap:5px;z-index:6}
+.tzoom button{width:23px;height:23px;border-radius:7px;border:1px solid #2b2a4d;background:rgba(10,9,32,.72);
+  color:#aab0d4;font-size:12px;font-weight:800;cursor:pointer;line-height:1;display:grid;place-items:center;
+  backdrop-filter:blur(4px);transition:.12s}
+.tzoom button:hover{border-color:var(--teal);color:var(--teal)}
+.cstage.st-thinking{box-shadow:inset 0 0 60px rgba(167,139,250,.09)}
+.cstage.st-speaking{box-shadow:inset 0 0 60px rgba(245,185,66,.09)}
+.cstage.st-listening{box-shadow:inset 0 0 60px rgba(90,169,230,.09)}
+.cstage.st-idle{box-shadow:inset 0 0 60px rgba(142,194,255,.06)}
+.orbstate{display:inline-flex!important;align-items:center;gap:8px}
+/* orbcap + transcript now live IN the orbit stage itself, behind Tony:
+   z-index sits below the WebGL canvas (root, z-index:2) so wherever the
+   sun/planets render opaque, the caption is literally occluded by Tony —
+   he's the one the lines come from, so they read as behind him, not
+   floating in front competing with him. */
+.tcap-behind{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);
+  z-index:1;width:min(620px,90%);pointer-events:none;text-align:center}
+.tcap-behind .orbcap{margin-top:0}
+/* dark backing panel behind the transcript so left/right annotation lines
+   stay legible over the bright orbit art rather than floating unsupported */
+.tcap-dim{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);
+  z-index:0;width:min(660px,94%);height:184px;pointer-events:none;border-radius:22px;
+  background:radial-gradient(ellipse 92% 100% at 50% 60%,rgba(4,6,10,.62),rgba(4,6,10,0) 78%)}
+.stateorb{width:26px;height:26px;display:block;flex:none}
+#orbcap{transition:opacity .22s ease}
+.tfallback{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;
+  font-size:12px;color:var(--mut);line-height:1.6}
+.star{animation:tw ease-in-out infinite}
+@keyframes tw{0%,100%{opacity:.22}50%{opacity:1}}
+.orbit{fill:none;stroke-width:1;stroke-opacity:.16}
+.ray{transform-box:fill-box;transform-origin:center;animation:spin 70s linear infinite}
+.sunglow{transform-box:fill-box;transform-origin:center;animation:bloom 4s ease-in-out infinite}
+.cline{fill:none;stroke-width:1.05;stroke-linecap:round;stroke-dasharray:1 8;animation:flow linear infinite}
+@keyframes flow{to{stroke-dashoffset:-36}}
+.cnode-g{animation:np 3.4s ease-in-out infinite}
+@keyframes np{0%,100%{opacity:.85}50%{opacity:1}}
+.clabel{font:700 12px -apple-system,'Segoe UI',sans-serif}
+.csub{font:700 8px -apple-system,sans-serif;letter-spacing:.5px}
+.ccore-g{transform-box:fill-box;transform-origin:center;animation:breathe 3.6s ease-in-out infinite}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes bloom{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.82;transform:scale(1.14)}}
+.cspin{transform-box:fill-box;transform-origin:center;animation:spin 30s linear infinite}
+.cspin2{transform-box:fill-box;transform-origin:center;animation:spin 20s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.wbar{transform-box:fill-box;transform-origin:center;animation:wave 1s ease-in-out infinite}
+@keyframes wave{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}
+.st-thinking .sunc{fill:url(#cp)}.st-thinking .cline.hot{stroke:var(--purp)!important}
+.st-speaking .sunc{fill:url(#cg2)}.st-speaking .cline.hot{stroke:var(--gold)!important}
+.st-listening .sunc{fill:url(#cb)}.st-listening .cline.hot{stroke:var(--blue)!important}
+.orbstate{font-size:12px;font-weight:800;letter-spacing:.4px;padding:5px 12px;border-radius:20px;margin-top:2px;transition:.3s;display:inline-block}
+/* who is actually talking right now — Tony (AI) or you. Kept as a quiet
+   back-of-stage annotation next to tmeta, same register as the latency
+   readout — instrumentation, not a headline next to the state text. */
+.spk-tag{position:absolute;top:9px;left:11px;z-index:6;pointer-events:none;
+  font-family:'SF Mono',ui-monospace,Menlo,monospace;
+  font-size:9.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  opacity:0;transition:opacity .3s ease}
+.spk-tag.show{opacity:.75}
+.spk-tag.ai{color:var(--gold)}
+.spk-tag.you{color:var(--blue)}
+.tline .spk{font-weight:800;letter-spacing:.4px;margin-right:5px;opacity:.85}
+.tline.you .spk{color:var(--blue)}.tline.ai .spk{color:var(--gold)}
+.orbcap{font-size:11.5px;color:var(--mut);text-align:center;margin-top:8px;min-height:32px;line-height:1.5}
+/* speaking latency annotation — a quiet technical readout, not part of
+   the conversation itself. It lives tucked in the back corner of the
+   stage (with tmeta) instead of in the dock, so it never competes with
+   who is actually talking — only shown while Tony is actively streaming
+   a reply, so it reads as instrumentation, not as content. */
+.latency-badge{position:absolute;top:9px;right:11px;z-index:6;pointer-events:none;
+  display:none;align-items:center;gap:5px;
+  font-family:'SF Mono',ui-monospace,Menlo,monospace;
+  font-size:9.5px;font-weight:700;letter-spacing:.4px;color:#5b7fa8;opacity:.75}
+.latency-badge.show{display:flex}
+.latency-badge .ldot{width:4px;height:4px;border-radius:50%;background:var(--gold);
+  box-shadow:0 0 5px var(--gold);animation:pulse .9s infinite}
+/* transcript — Tony's lines pin left, yours pin right (chat-style
+   annotation), most recent largest/brightest, older lines shrink and fade
+   (a receding caption stack). The panel itself only ever shows ~5 rows;
+   the rest of the history scrolls, with the mask fading the row peeking
+   in at the top/bottom edge so the scroll affordance reads at a glance. */
+.transcript{display:flex;flex-direction:column;gap:2px;margin-top:6px;max-width:600px;
+  margin-left:auto;margin-right:auto;overflow-y:auto;overflow-x:hidden;
+  height:150px;pointer-events:auto;scroll-behavior:smooth;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 14%,#000 86%,transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 14%,#000 86%,transparent 100%);
+  scrollbar-width:thin;scrollbar-color:rgba(139,154,168,.35) transparent}
+.transcript::-webkit-scrollbar{width:5px}
+.transcript::-webkit-scrollbar-thumb{background:rgba(139,154,168,.35);border-radius:6px}
+.transcript::-webkit-scrollbar-track{background:transparent}
+.trow{display:flex;width:100%;flex:none;min-height:28px;align-items:center;padding:1px 6px}
+.trow.ai{justify-content:flex-start}
+.trow.you{justify-content:flex-end}
+.tline{max-width:80%;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;
+  transition:font-size .35s ease,opacity .35s ease,transform .35s ease}
+.trow.ai .tline{text-align:left}
+.trow.you .tline{text-align:right}
+.tline.mic-live{opacity:.85!important;font-style:italic;color:var(--blue);animation:miclive 1.2s ease-in-out infinite}
+@keyframes miclive{0%,100%{opacity:.55}50%{opacity:.95}}
+.route{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.chip{font-size:10px;font-weight:800;padding:3px 9px;border-radius:20px;border:1px solid var(--line);color:var(--mut);transition:.3s}
+.chip.on{background:rgba(45,212,191,.16);color:var(--teal);border-color:var(--teal)}
+.chip.opus.on{background:rgba(167,139,250,.16);color:var(--purp);border-color:var(--purp)}
+.costtick{margin-top:12px;font-size:11px;color:var(--mut);font-variant-numeric:tabular-nums}
+.costtick b{color:var(--grn);font-size:14px}
+.mic{margin-top:14px;display:flex;align-items:center;gap:9px;background:var(--card2);border:1px solid var(--line);border-radius:24px;padding:7px 8px 7px 14px;width:100%}
+.mic input{flex:1;background:transparent;border:none;color:var(--ink);font-size:12.5px;outline:none;font-family:inherit}
+.micbtn{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--purp),var(--teal));display:grid;place-items:center;cursor:pointer;font-size:15px;flex:none;position:relative;transition:.15s}
+.micbtn:hover{filter:brightness(1.12)}
+.micbtn.rec{background:linear-gradient(135deg,var(--red),#c94848);animation:micpulse 1.1s ease-in-out infinite}
+.micbtn.rec::after{content:'';position:absolute;inset:-6px;border-radius:50%;border:1.5px solid var(--red);
+  opacity:.55;animation:micring 1.1s ease-out infinite}
+@keyframes micpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@keyframes micring{0%{transform:scale(.85);opacity:.6}100%{transform:scale(1.55);opacity:0}}
+.mic input.rec{color:var(--red)}
+.mic input.rec::placeholder{color:var(--red);opacity:.75}
+.trace{font-family:'SF Mono',ui-monospace,Menlo,monospace;font-size:11.5px;line-height:1.9;color:var(--mut)}
+.trace .step{display:flex;gap:9px;padding:3px 0}
+.trace .num{color:var(--teal);font-weight:800;flex:none;width:18px}
+.trace b{color:var(--ink)}.trace .gate{color:var(--gold)}
+.slider{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.slider label{width:78px;font-size:11.5px;color:var(--mut);font-weight:600}
+.slider input{flex:1;accent-color:var(--purp)}
+.slider .val{width:30px;text-align:right;font-size:11px;color:var(--purp);font-weight:800}
+.preset{font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--mut);cursor:pointer}
+.preset.on{border-color:var(--purp);color:var(--purp);background:rgba(167,139,250,.12)}
+.mem{background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--purp);border-radius:8px;padding:9px 11px;margin-bottom:7px;font-size:11.5px;color:var(--mut)}
+.mem b{color:var(--ink)}.mem .tag{font-size:9px;font-weight:800;color:var(--purp);text-transform:uppercase;letter-spacing:.5px}
+/* team workspace desk */
+.toolscard{padding:22px 22px 26px}
+.tools{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;justify-content:space-between}
+.tool{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:18px 12px;font-size:12.5px;font-weight:700;color:var(--ink);cursor:pointer;transition:.12s;text-align:center;flex:1 1 0;min-width:120px;min-height:88px}
+.tool:hover{border-color:var(--teal);color:var(--teal);transform:translateY(-2px)}
+.tool .ti{font-size:24px;line-height:1}
+.tool .tn{font-size:12.5px;font-weight:700}
+.qcard,.lcard{min-height:460px}
+.qrow{display:flex;align-items:flex-start;gap:10px;background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:8px}
+.qdot{width:9px;height:9px;border-radius:50%;margin-top:4px;flex:none}
+.q-done{background:var(--grn)}.q-doing{background:var(--gold);box-shadow:0 0 7px var(--gold)}.q-todo{background:var(--mut)}.q-gate{background:var(--red);box-shadow:0 0 7px var(--red)}
+.qmain{flex:1}.qt{font-size:12.5px;font-weight:600}.qt .st{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-left:7px}
+.qbrief{font-size:11px;color:var(--mut);margin-top:5px;border-left:2px solid var(--purp);padding-left:9px;line-height:1.5}
+.qbrief b{color:var(--purp)}
+.logbox{background:var(--card2);border:1.5px dashed var(--line);border-radius:11px;padding:14px}
+.logbox textarea{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:10px;font-family:inherit;font-size:12.5px;min-height:56px;outline:none;resize:none}
+.logbox textarea:focus{border-color:var(--teal)}
+.logi{display:flex;gap:9px;font-size:11.5px;color:var(--mut);padding:5px 0;border-top:1px solid #16202a}
+.logi .lt{color:var(--grn);flex:none}
+/* records table */
+.rtab{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+.rtab th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);padding:8px 10px;border-bottom:1px solid var(--line)}
+.rtab td{padding:9px 10px;border-bottom:1px solid #16202a;vertical-align:top}
+.badge{font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:12px;white-space:nowrap}
+.b-add{background:rgba(62,207,142,.14);color:var(--grn)}
+.b-edit{background:rgba(90,169,230,.14);color:var(--blue)}
+.b-arc{background:rgba(245,185,66,.14);color:var(--gold)}
+.b-del{background:rgba(242,109,109,.14);color:var(--red)}
+
+/* Audit History now lives inside Records & Knowledge instead of primary navigation. */
+.audit-history-card{margin-top:16px}
+.audit-history-card .cap{margin-bottom:8px}
+.audit-history-card .feed{max-height:290px;overflow-y:auto;padding-right:4px;scrollbar-width:thin;scrollbar-color:#2a3a47 transparent}
+.audit-history-card .feed::-webkit-scrollbar{width:6px}
+.audit-history-card .feed::-webkit-scrollbar-thumb{background:#2a3a47;border-radius:8px}
+.audit-history-card .frow{border-bottom:1px solid rgba(30,42,53,.55)}
+.audit-history-card .frow:last-child{border-bottom:0}
+
+/* ===== LIVE FEED RAIL (persistent right column) ===== */
+.content-row{display:grid;grid-template-columns:1fr 340px;
+  gap:0 18px;align-items:stretch;max-width:1472px;margin:0 auto;
+  padding:0 20px 60px 84px}
+.content-row.norail{grid-template-columns:1fr;max-width:1200px;padding-right:20px}
+.content-row.norail .liverail{display:none}
+.liverail{position:sticky;top:74px;margin-top:22px;display:flex;
+  flex-direction:column;gap:12px;min-width:0;align-self:stretch}
+.railcard{background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:15px}
+.railcard h4{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut);
+  font-weight:800;display:flex;align-items:center;gap:7px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.railcard .rdot{width:7px;height:7px;border-radius:50%;background:var(--red);
+  box-shadow:0 0 7px var(--red);animation:pulse 1.4s infinite;flex:none}
+.railcard .rnote{font-size:11.5px;color:var(--mut);line-height:1.6;margin-top:9px}
+.railcard.tall{min-height:0;height:100%;max-height:none;display:flex;flex-direction:column;flex:1 1 auto}
+/* two independent feed sliders inside the rail */
+.rf-sec+.rf-sec{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.rf-sec{display:flex;flex-direction:column;flex:1 1 0;min-height:0}
+.rf-stage{position:relative;width:100%;border-radius:11px;overflow:hidden;margin-top:7px;cursor:pointer;
+  background:linear-gradient(150deg,var(--card2),#0a0f14);flex:1 1 auto;min-height:0}
+/* aspect-ratio now only sets a floor; flex:1 lets the stage grow to fill
+   the rail's stretched height so the whole rail matches the left panel */
+.rf-stage-live{aspect-ratio:3/4}
+.rf-stage-video{aspect-ratio:4/3}
+.rf-shimmer{position:absolute;inset:0;background-size:220% 220%;animation:rfshim 3.4s linear infinite;opacity:.9}
+@keyframes rfshim{0%{background-position:130% 0}100%{background-position:-30% 0}}
+.rf-badge{position:absolute;top:7px;left:7px;display:flex;align-items:center;gap:5px;font-size:9px;font-weight:800;
+  letter-spacing:.4px;padding:3px 7px;border-radius:20px;text-transform:uppercase;color:#fff}
+.rf-badge.live{background:rgba(242,109,109,.88)}
+.rf-badge.vid{background:rgba(90,169,230,.88)}
+.rf-badge .bdot{width:5px;height:5px;border-radius:50%;background:#fff;animation:pulse 1.2s infinite}
+.rf-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:rgba(255,255,255,.82);pointer-events:none}
+.rf-engage{position:absolute;top:7px;right:7px;display:flex;align-items:center;gap:7px;background:rgba(0,0,0,.45);
+  padding:3px 7px;border-radius:20px;font-size:9px;font-weight:700;color:#fff}
+.rf-engage .em{display:flex;align-items:center;gap:3px;white-space:nowrap}
+.rf-engage .ic{font-size:8.5px;line-height:1}
+.rf-paused-tag{position:absolute;top:29px;left:7px;font-size:8.5px;font-weight:800;color:#fff;background:rgba(0,0,0,.5);padding:2px 7px;border-radius:20px}
+.rf-scrim{position:absolute;left:0;right:0;bottom:0;padding:16px 8px 7px;background:linear-gradient(180deg,transparent,rgba(0,0,0,.85))}
+.rf-title{font-size:11.5px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rf-sub{font-size:10px;color:rgba(255,255,255,.75);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rf-arrow{position:absolute;top:50%;transform:translateY(-50%);width:21px;height:21px;border-radius:50%;background:rgba(0,0,0,.45);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;opacity:0;transition:.15s}
+.rf-stage:hover .rf-arrow{opacity:1}
+.rf-arrow.prev{left:6px}.rf-arrow.next{right:6px}
+.rf-dots{display:flex;justify-content:center;gap:5px;margin-top:6px}
+.rf-dot{width:5px;height:5px;border-radius:50%;background:var(--line);cursor:pointer;transition:.2s}
+.rf-dot.on{background:var(--teal);width:14px;border-radius:3px}
+@media(prefers-reduced-motion:reduce){.rf-shimmer{animation:none}}
+
+:root{--grn:#3ecf8e;--teal:#2dd4bf;--blue:#5aa9e6;--purp:#a78bfa;--gold:#f5b942;--pink:#f472b6;--ink:#e9f0f6;--mut:#8b9aa8}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#020409;font-family:Rajdhani,system-ui,sans-serif}
+.tstage{position:absolute;inset:0;aspect-ratio:auto;min-height:0;max-height:none;width:100%;height:100%;border-radius:0;touch-action:none}
+#orbcap{position:absolute;left:18%;right:18%;bottom:220px;z-index:6;text-align:center;font-size:14px;color:#c3ccd4;pointer-events:none}
+#tmeta{position:absolute;left:68px;top:9px;z-index:6}

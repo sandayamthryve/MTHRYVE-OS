@@ -1,0 +1,78 @@
+name: auth-heartbeat
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Production auth heartbeat (Phase 0.4) — the plan-independent scheduler.
+#
+# Auto-promote is ON, so production /login needs a heartbeat INDEPENDENT of the
+# pre-merge auth-e2e gate. This was originally a Vercel Cron entry, but */5 cron
+# schedules are Pro-only and Hobby rejects the deployment at parse time — so the
+# schedule lives here in GitHub Actions instead, which is plan-independent.
+#
+# It calls the CRON_SECRET-protected route app/api/monitor/auth-health, which
+# fetches the live /login screen WITHOUT following redirects and returns
+# { status: "healthy" | "unhealthy", ... }. This job fails on a non-2xx response
+# OR a body whose status is not "healthy", so a RED run in the Actions tab IS the
+# alert (in addition to the in-app leadership notification the route fires).
+#
+# NOTE: GitHub scheduled runs are BEST-EFFORT — the scheduler can drift 5–15 min
+# and, under load, occasionally skip a tick. This is a heartbeat, not a hard SLA
+# timer; the route's own leadership alert is the primary in-app signal.
+#
+# REQUIRES the GitHub Actions secret CRON_SECRET (same value as the route's
+# CRON_SECRET in the Vercel env). Without it the curl is unauthenticated and the
+# route returns 401 → the job goes red, which correctly flags the misconfig.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+# Overridable without a code change if the route ever moves.
+env:
+  AUTH_HEALTH_URL: https://mthryve-os.vercel.app/api/monitor/auth-health
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe production auth health
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET secret is not set — cannot authenticate the heartbeat."
+            exit 1
+          fi
+
+          # Capture body + HTTP status in one call. -f is intentionally NOT used:
+          # we want to read the body on a non-2xx to surface the failure reason.
+          http_status=$(curl -sS -m 30 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -o response.json -w "%{http_code}" \
+            "${AUTH_HEALTH_URL}") || {
+              echo "::error::curl failed to reach ${AUTH_HEALTH_URL}"
+              exit 1
+            }
+
+          echo "HTTP ${http_status}"
+          echo "Body:"
+          cat response.json || true
+          echo
+
+          if [ "${http_status}" -lt 200 ] || [ "${http_status}" -ge 300 ]; then
+            echo "::error::auth-health returned non-2xx (${http_status})."
+            exit 1
+          fi
+
+          # Fail unless the JSON body reports status == "healthy".
+          status=$(python3 -c "import json,sys; print(json.load(open('response.json')).get('status',''))")
+          if [ "${status}" != "healthy" ]; then
+            reason=$(python3 -c "import json; d=json.load(open('response.json')); print(d.get('failureReason') or d.get('error') or 'unknown')")
+            echo "::error::Production /login is UNHEALTHY: ${reason}"
+            exit 1
+          fi
+
+          echo "Production /login is healthy."

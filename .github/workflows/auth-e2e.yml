@@ -1,0 +1,126 @@
+name: auth-e2e
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Permanent auth regression gate (Phase 0.4).
+#
+# Production /login 307-redirect-looped for ~2 weeks because auto-promote is ON
+# and NOTHING verified the login screen between a merge and the team seeing it.
+# This workflow drives a real browser against every non-production Vercel preview.
+#
+# TRIGGER: deployment_status. Vercel creates a GitHub deployment for every deploy
+# and marks it `success` once the preview URL is live, so this fires with the URL
+# ready — no polling. We skip Production (it has its own heartbeat).
+#
+# TWO JOBS, by design:
+#   • auth-e2e      — runs ONLY the cookie-less /login test (@gate), the assertion
+#                     that reproduces the production redirect loop. This is the
+#                     BLOCKING gate: it must go green on clean code. Add it as a
+#                     required status check on `main` (Settings → Branches).
+#   • auth-e2e-full — runs the logged-in tests (@full: login / reload / logout)
+#                     with a real e2e-bot sign-in against the preview. UN-QUARANTINED
+#                     now that the /login ⇄ /home 307 loop is fixed (the server
+#                     Supabase client reads the session with the same getAll/setAll
+#                     contract as middleware). These are the tests that actually
+#                     exercise a logged-in session end-to-end, so they BLOCK too.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  deployment_status:
+
+jobs:
+  # BLOCKING gate — the incident assertion only. Must be green on clean code.
+  auth-e2e:
+    if: >
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment != 'Production'
+    runs-on: ubuntu-latest
+    steps:
+      # Without the bypass secret Playwright is an anonymous client, so Vercel's
+      # Deployment Protection answers first: /login 302s to vercel.com/sso-api,
+      # whose page has an email box and no password box. The run then dies on
+      # `getByLabel("Password")` — a selector timeout that reads like an app
+      # regression but never reached the app at all. Fail here instead, before
+      # the six-minute browser install, and say what is actually missing.
+      - name: Check automation bypass secret
+        env:
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          if [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            echo "::error title=VERCEL_AUTOMATION_BYPASS_SECRET is not set::The @gate test would run against Vercel's Deployment Protection login page instead of this app, and fail on a missing password field. Add the secret under Settings -> Secrets and variables -> Actions. Its value comes from Vercel: Project Settings -> Deployment Protection -> Protection Bypass for Automation."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test e2e/auth.spec.ts --grep "@gate"
+        env:
+          E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-gate
+          path: playwright-report/
+          retention-days: 14
+
+  # BLOCKING — real logged-in flow (login / reload / logout). Un-quarantined now
+  # that the redirect loop is fixed: a real sign-in against the preview completes,
+  # so these must stay green like the @gate job.
+  auth-e2e-full:
+    if: >
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment != 'Production'
+    runs-on: ubuntu-latest
+    steps:
+      # These tests sign in as a real Supabase user, so they need credentials the
+      # @gate job does not. When the secrets are absent the spec throws out of
+      # requireCreds before a browser opens, which looks like a product failure.
+      # Skip the run instead and leave a warning on the summary: an unconfigured
+      # repository should not report a red auth regression it never tested.
+      - name: Check end-to-end credentials
+        id: preflight
+        env:
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          missing=""
+          [ -n "$E2E_USER_EMAIL" ] || missing="$missing E2E_USER_EMAIL"
+          [ -n "$E2E_USER_PASSWORD" ] || missing="$missing E2E_USER_PASSWORD"
+          [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ] || missing="$missing VERCEL_AUTOMATION_BYPASS_SECRET"
+          if [ -n "$missing" ]; then
+            echo "::warning title=auth-e2e-full skipped::Missing secrets:$missing. The logged-in flow was not exercised on this deployment. Add them under Settings -> Secrets and variables -> Actions to turn this job back into a real gate."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.preflight.outputs.skip != 'true'
+      - uses: actions/setup-node@v4
+        if: steps.preflight.outputs.skip != 'true'
+        with:
+          node-version: 20
+          cache: npm
+      - if: steps.preflight.outputs.skip != 'true'
+        run: npm ci
+      - if: steps.preflight.outputs.skip != 'true'
+        run: npx playwright install --with-deps chromium
+      - if: steps.preflight.outputs.skip != 'true'
+        run: npx playwright test e2e/auth.spec.ts --grep "@full"
+        env:
+          E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - uses: actions/upload-artifact@v4
+        if: failure() && steps.preflight.outputs.skip != 'true'
+        with:
+          name: playwright-report-full
+          path: playwright-report/
+          retention-days: 14

@@ -1,0 +1,9 @@
+:root{
+  --grn:#55d98a;--gold:#f5b942;--purp:#a78bfa;--teal:#2dd4bf;
+  --pink:#f472b6;--blue:#5aa9e6;--mut:#8b9aa8;
+}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent}
+body{position:relative}
+#preview{display:block;width:100%;height:100%;background:transparent}
+#tstage{position:fixed!important;left:-9999px!important;top:-9999px!important;width:4px!important;height:4px!important;min-height:4px!important;max-height:4px!important;opacity:0!important;pointer-events:none!important}
+#tmeta,#orbcap{display:none!important}

@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mthryve OS — Screen Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          charcoal: { 950:'#0F1416', 900:'#161D21', 800:'#202A2F', 700:'#2B373D' },
+          teal: { 500:'#2FA8A0', 400:'#4BC0B8' },
+          green: { 500:'#4CAF6D', 400:'#6BC98A' },
+          gold: { 500:'#D4A94B', 400:'#E0BD6E' },
+          ink: { DEFAULT:'#E8ECEC', muted:'#93A1A1' },
+        },
+        fontFamily: {
+          display: ['"Space Grotesk"','sans-serif'],
+          body: ['Inter','sans-serif'],
+          mono: ['"IBM Plex Mono"','monospace'],
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  h1,h2,h3,.font-display { font-family: 'Space Grotesk', sans-serif; }
+  .font-mono { font-family: 'IBM Plex Mono', monospace; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #2B373D; border-radius: 999px; }
+</style>
+</head>
+<body class="bg-charcoal-950 text-ink">
+
+<!-- Mockup nav — this bar is a review aid only, not part of the real product -->
+<div class="sticky top-0 z-50 flex items-center gap-1 overflow-x-auto border-b border-charcoal-700 bg-charcoal-900 px-4 py-2">
+  <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-teal-400 mr-3 shrink-0">Mockup review</span>
+  <button onclick="showScreen('login')" class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-charcoal-800 hover:text-ink">Login</button>
+  <button onclick="showScreen('ceo')" class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-charcoal-800 hover:text-ink">CEO Dashboard</button>
+  <button onclick="showScreen('dept')" class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-charcoal-800 hover:text-ink">Department Dashboard</button>
+  <button onclick="showScreen('employee')" class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-charcoal-800 hover:text-ink">Employee Dashboard</button>
+  <button onclick="showScreen('tasks')" class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-charcoal-800 hover:text-ink">Task Board</button>
+  <button onclick="showScreen('approvals')" class="tab-btn shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-charcoal-800 hover:text-ink">Approvals</button>
+</div>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login" class="screen">
+  <main class="flex min-h-[calc(100vh-49px)] items-center justify-center px-6">
+    <div class="w-full max-w-sm">
+      <div class="mb-8 text-center">
+        <p class="font-mono text-xs uppercase tracking-[0.2em] text-teal-400">Mthryve OS</p>
+        <h1 class="mt-2 text-2xl font-bold">Sign in</h1>
+        <p class="mt-1 text-sm text-ink-muted">Use the email and password from your invite.</p>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="mb-1.5 block text-sm text-ink-muted">Email</label>
+          <input class="w-full rounded-md border border-charcoal-700 bg-charcoal-900 px-3 py-2 text-ink placeholder:text-ink-muted" placeholder="you@mthryve.com" />
+        </div>
+        <div>
+          <label class="mb-1.5 block text-sm text-ink-muted">Password</label>
+          <input type="password" class="w-full rounded-md border border-charcoal-700 bg-charcoal-900 px-3 py-2 text-ink" />
+        </div>
+        <button class="w-full rounded-md bg-teal-500 py-2 font-medium text-charcoal-950 hover:bg-teal-400">Sign in</button>
+      </div>
+      <p class="mt-6 text-center text-xs text-ink-muted">Need access? Ask your Department Head for an invite.</p>
+    </div>
+  </main>
+</div>
+
+<!-- ===================== SHARED SHELL TEMPLATE (repeated per screen) ===================== -->
+
+<!-- ===================== CEO DASHBOARD ===================== -->
+<div id="ceo" class="screen">
+  <header class="flex items-center justify-between border-b border-charcoal-700 bg-charcoal-900 px-6 py-3">
+    <nav class="flex items-center gap-2 font-mono text-xs text-ink-muted">
+      <span>Mthryve OS</span><span class="h-3 w-px bg-teal-500/50"></span><span class="text-ink">CEO Dashboard</span>
+    </nav>
+    <div class="flex items-center gap-4 text-sm text-ink-muted">
+      <span>Search</span><span>Notifications</span>
+      <span class="rounded-md bg-teal-500/10 px-3 py-1 font-medium text-teal-400">Ask the assistant</span>
+      <span class="h-8 w-8 rounded-full bg-gold-500/20 text-center leading-8 text-gold-400 font-mono text-xs">W</span>
+    </div>
+  </header>
+  <main class="px-6 py-6">
+    <h1 class="mb-1 text-xl font-bold">Portfolio overview</h1>
+    <p class="mb-6 text-sm text-ink-muted">All 7 departments, 10 brands. Universal metric set, this week.</p>
+
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+        <p class="text-xs text-ink-muted mb-1">GMV Impact</p>
+        <p class="font-mono text-2xl font-medium text-green-400">₱4.82M</p>
+        <p class="text-xs text-green-500 mt-1">▲ 12% vs last week</p>
+      </div>
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+        <p class="text-xs text-ink-muted mb-1">Efficiency</p>
+        <p class="font-mono text-2xl font-medium">87%</p>
+        <p class="text-xs text-ink-muted mt-1">Flat vs last week</p>
+      </div>
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+        <p class="text-xs text-ink-muted mb-1">Quality Score</p>
+        <p class="font-mono text-2xl font-medium text-gold-400">7.9 / 10</p>
+        <p class="text-xs text-gold-500 mt-1">▼ 0.3 — fulfillment errors up</p>
+      </div>
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+        <p class="text-xs text-ink-muted mb-1">Capacity Utilization</p>
+        <p class="font-mono text-2xl font-medium">94%</p>
+        <p class="text-xs text-ink-muted mt-1">Near ceiling — 3 depts over 95%</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+        <h2 class="mb-3 text-sm font-semibold">Departments</h2>
+        <ul class="space-y-2 text-sm">
+          <li class="flex justify-between"><span>Live Operations</span><span class="font-mono text-ink-muted">92% eff.</span></li>
+          <li class="flex justify-between"><span>Creative</span><span class="font-mono text-ink-muted">85% eff.</span></li>
+          <li class="flex justify-between"><span>Affiliate Marketing</span><span class="font-mono text-ink-muted">88% eff.</span></li>
+          <li class="flex justify-between"><span>Business Development</span><span class="font-mono text-ink-muted">90% eff.</span></li>
+          <li class="flex justify-between"><span>E-Commerce Ops</span><span class="font-mono text-ink-muted">83% eff.</span></li>
+          <li class="flex justify-between"><span>HR &amp; Admin</span><span class="font-mono text-ink-muted">95% eff.</span></li>
+          <li class="flex justify-between text-gold-400"><span>Warehouse &amp; Fulfillment</span><span class="font-mono">71% eff. ⚠</span></li>
+        </ul>
+      </div>
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+        <h2 class="mb-3 text-sm font-semibold">Top brands by GMV share</h2>
+        <ul class="space-y-2 text-sm">
+          <li class="flex justify-between"><span>FML (Industrial/Tarpaulin)</span><span class="font-mono text-teal-400">70%</span></li>
+          <li class="flex justify-between"><span>Alianna's Choice</span><span class="font-mono text-ink-muted">8%</span></li>
+          <li class="flex justify-between"><span>Namiroseus Main</span><span class="font-mono text-ink-muted">6%</span></li>
+          <li class="flex justify-between text-ink-muted opacity-60"><span>Star 360</span><span class="font-mono">inactive</span></li>
+        </ul>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ===================== DEPARTMENT DASHBOARD ===================== -->
+<div id="dept" class="screen">
+  <header class="flex items-center justify-between border-b border-charcoal-700 bg-charcoal-900 px-6 py-3">
+    <nav class="flex items-center gap-2 font-mono text-xs text-ink-muted">
+      <span>Mthryve OS</span><span class="h-3 w-px bg-teal-500/50"></span><span class="text-ink">Warehouse &amp; Fulfillment</span>
+    </nav>
+    <div class="flex items-center gap-4 text-sm text-ink-muted">
+      <span>Search</span><span>Notifications</span>
+      <span class="rounded-md bg-teal-500/10 px-3 py-1 font-medium text-teal-400">Ask the assistant</span>
+      <span class="h-8 w-8 rounded-full bg-charcoal-800 text-center leading-8 text-xs">•</span>
+    </div>
+  </header>
+  <main class="px-6 py-6">
+    <h1 class="mb-1 text-xl font-bold">Warehouse &amp; Fulfillment</h1>
+    <p class="mb-6 text-sm text-ink-muted">Department metrics and open tasks.</p>
+
+    <div class="grid grid-cols-4 gap-4 mb-6">
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+        <p class="text-xs text-ink-muted mb-1">GMV Impact</p>
+        <p class="font-mono text-2xl font-medium">₱612K</p>
+      </div>
+      <div class="rounded-lg border border-gold-500/40 bg-charcoal-900 p-4">
+        <p class="text-xs text-ink-muted mb-1">Efficiency</p>
+        <p class="font-mono text-2xl font-medium text-gold-400">71%</p>
+      </div>
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+        <p class="text-xs text-ink-muted mb-1">Quality Score</p>
+        <p class="font-mono text-2xl font-medium">6.8 / 10</p>
+      </div>
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+        <p class="text-xs text-ink-muted mb-1">Capacity Utilization</p>
+        <p class="font-mono text-2xl font-medium">98%</p>
+      </div>
+    </div>
+
+    <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4">
+      <h2 class="mb-3 text-sm font-semibold">Open tasks</h2>
+      <table class="w-full text-sm">
+        <thead class="text-left text-ink-muted text-xs uppercase tracking-wide">
+          <tr><th class="pb-2">Task</th><th class="pb-2">Brand</th><th class="pb-2">Assignee</th><th class="pb-2">Priority</th><th class="pb-2">Status</th></tr>
+        </thead>
+        <tbody class="divide-y divide-charcoal-800">
+          <tr><td class="py-2">Fix recurring mis-pick errors</td><td class="text-ink-muted">FML</td><td class="text-ink-muted">J. Reyes</td><td><span class="text-gold-400">High</span></td><td><span class="rounded bg-charcoal-800 px-2 py-0.5 text-xs">In progress</span></td></tr>
+          <tr><td class="py-2">Restock audit — Vitachums</td><td class="text-ink-muted">Vitachums</td><td class="text-ink-muted">M. Cruz</td><td>Medium</td><td><span class="rounded bg-charcoal-800 px-2 py-0.5 text-xs">Not started</span></td></tr>
+          <tr><td class="py-2">Packaging QA pass</td><td class="text-ink-muted">Basic City</td><td class="text-ink-muted">A. Santos</td><td>Low</td><td><span class="rounded bg-green-500/20 px-2 py-0.5 text-xs text-green-400">Done</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- ===================== EMPLOYEE DASHBOARD ===================== -->
+<div id="employee" class="screen">
+  <header class="flex items-center justify-between border-b border-charcoal-700 bg-charcoal-900 px-6 py-3">
+    <nav class="flex items-center gap-2 font-mono text-xs text-ink-muted">
+      <span>Mthryve OS</span><span class="h-3 w-px bg-teal-500/50"></span><span class="text-ink">My dashboard</span>
+    </nav>
+    <div class="flex items-center gap-4 text-sm text-ink-muted">
+      <span>Search</span><span>Notifications</span>
+      <span class="rounded-md bg-teal-500/10 px-3 py-1 font-medium text-teal-400">Ask the assistant</span>
+      <span class="h-8 w-8 rounded-full bg-charcoal-800 text-center leading-8 text-xs">•</span>
+    </div>
+  </header>
+  <main class="px-6 py-6 max-w-3xl">
+    <h1 class="mb-1 text-xl font-bold">My dashboard</h1>
+    <p class="mb-6 text-sm text-ink-muted">3 tasks assigned to you this week.</p>
+    <div class="space-y-3">
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium">Fix recurring mis-pick errors</p>
+          <p class="text-xs text-ink-muted mt-0.5">FML · due tomorrow</p>
+        </div>
+        <span class="text-gold-400 text-xs font-mono">High</span>
+      </div>
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium">Approve creator payout batch</p>
+          <p class="text-xs text-ink-muted mt-0.5">Affiliate Marketing · due Friday</p>
+        </div>
+        <span class="text-ink-muted text-xs font-mono">Medium</span>
+      </div>
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4 flex items-center justify-between opacity-60">
+        <div>
+          <p class="text-sm font-medium line-through">Packaging QA pass</p>
+          <p class="text-xs text-ink-muted mt-0.5">Basic City · completed</p>
+        </div>
+        <span class="text-green-400 text-xs font-mono">Done</span>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ===================== TASK BOARD (KANBAN) ===================== -->
+<div id="tasks" class="screen">
+  <header class="flex items-center justify-between border-b border-charcoal-700 bg-charcoal-900 px-6 py-3">
+    <nav class="flex items-center gap-2 font-mono text-xs text-ink-muted">
+      <span>Mthryve OS</span><span class="h-3 w-px bg-teal-500/50"></span><span class="text-ink">Task Board</span>
+    </nav>
+    <div class="flex items-center gap-4 text-sm text-ink-muted">
+      <span>Search</span><span>Notifications</span>
+      <span class="rounded-md bg-teal-500/10 px-3 py-1 font-medium text-teal-400">Ask the assistant</span>
+      <span class="h-8 w-8 rounded-full bg-charcoal-800 text-center leading-8 text-xs">•</span>
+    </div>
+  </header>
+  <main class="px-6 py-6">
+    <h1 class="mb-1 text-xl font-bold">Task Board — E-Commerce Ops</h1>
+    <p class="mb-6 text-sm text-ink-muted">Grouped by status, brand-tagged.</p>
+    <div class="grid grid-cols-3 gap-4">
+      <div>
+        <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Not started</h2>
+        <div class="space-y-3">
+          <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-3">
+            <p class="text-sm">Listing optimization audit</p>
+            <p class="mt-1 text-xs text-teal-400">Namiroseus Main</p>
+          </div>
+          <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-3">
+            <p class="text-sm">Set up TikTok Shop webhook</p>
+            <p class="mt-1 text-xs text-teal-400">Cross-brand</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">In progress</h2>
+        <div class="space-y-3">
+          <div class="rounded-lg border border-teal-500/40 bg-charcoal-900 p-3">
+            <p class="text-sm">Missions &amp; rewards activation</p>
+            <p class="mt-1 text-xs text-teal-400">Standard Philippines</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <h2 class="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Done</h2>
+        <div class="space-y-3">
+          <div class="rounded-lg border border-green-500/30 bg-charcoal-900 p-3 opacity-80">
+            <p class="text-sm line-through">CSR content calendar</p>
+            <p class="mt-1 text-xs text-green-400">Crayola Philippines</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ===================== APPROVALS QUEUE ===================== -->
+<div id="approvals" class="screen">
+  <header class="flex items-center justify-between border-b border-charcoal-700 bg-charcoal-900 px-6 py-3">
+    <nav class="flex items-center gap-2 font-mono text-xs text-ink-muted">
+      <span>Mthryve OS</span><span class="h-3 w-px bg-teal-500/50"></span><span class="text-ink">Approvals</span>
+    </nav>
+    <div class="flex items-center gap-4 text-sm text-ink-muted">
+      <span>Search</span><span>Notifications</span>
+      <span class="rounded-md bg-teal-500/10 px-3 py-1 font-medium text-teal-400">Ask the assistant</span>
+      <span class="h-8 w-8 rounded-full bg-gold-500/20 text-center leading-8 text-gold-400 font-mono text-xs">W</span>
+    </div>
+  </header>
+  <main class="px-6 py-6 max-w-3xl">
+    <h1 class="mb-1 text-xl font-bold">Approvals queue</h1>
+    <p class="mb-6 text-sm text-ink-muted">AI proposes → you approve → task executes. Nothing here has run yet.</p>
+
+    <div class="space-y-3">
+      <div class="rounded-lg border border-gold-500/40 bg-charcoal-900 p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="rounded bg-gold-500/20 px-2 py-0.5 text-xs text-gold-400 font-mono">Pending</span>
+          <span class="text-xs text-ink-muted">Proposed by AI Assistant</span>
+        </div>
+        <p class="text-sm">Generate 4 tasks from yesterday's BD standup notes and assign to E-Commerce Ops</p>
+        <div class="mt-3 flex gap-2">
+          <button class="rounded-md bg-teal-500 px-3 py-1.5 text-xs font-medium text-charcoal-950">Approve</button>
+          <button class="rounded-md border border-charcoal-700 px-3 py-1.5 text-xs text-ink-muted">Reject</button>
+        </div>
+      </div>
+      <div class="rounded-lg border border-charcoal-700 bg-charcoal-900 p-4 opacity-70">
+        <div class="flex items-center justify-between mb-2">
+          <span class="rounded bg-green-500/20 px-2 py-0.5 text-xs text-green-400 font-mono">Approved</span>
+          <span class="text-xs text-ink-muted">Reviewed by Wolfie</span>
+        </div>
+        <p class="text-sm">Weekly report draft — Warehouse &amp; Fulfillment</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('bg-charcoal-800','text-ink'));
+    event.target.classList.add('bg-charcoal-800','text-ink');
+  }
+  showScreen('login');
+  document.querySelectorAll('.tab-btn')[0].classList.add('bg-charcoal-800','text-ink');
+</script>
+
+</body>
+</html>

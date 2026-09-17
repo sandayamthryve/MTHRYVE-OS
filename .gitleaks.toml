@@ -1,0 +1,37 @@
+# gitleaks configuration for Mthryve OS
+# Extends the bundled default ruleset (AWS keys, generic API keys, private keys,
+# tokens, etc.) and adds project-specific rules + a tight allowlist so the scan
+# fails on real secrets without flagging documentation placeholders.
+title = "Mthryve OS gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "supabase-service-role-jwt"
+description = "Supabase service_role / JWT-style secret"
+# Supabase keys are JWTs beginning with the base64 header for {"alg":"HS256",...}
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'''
+keywords = ["eyj"]
+
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API key"
+regex = '''sk-ant-[A-Za-z0-9_-]{20,}'''
+keywords = ["sk-ant-"]
+
+[allowlist]
+description = "Files and patterns that are safe by design"
+paths = [
+  '''\.env\.example$''',
+  '''\.gitleaks\.toml$''',
+  '''(^|/)SECURITY\.md$''',
+  '''(^|/)README\.md$''',
+  '''(^|/)docs/''',
+]
+# The public anon key is safe to expose by design (it is RLS-gated) and appears
+# only as a NEXT_PUBLIC_* variable NAME in docs/examples, never as a value.
+regexes = [
+  '''NEXT_PUBLIC_SUPABASE_ANON_KEY''',
+  '''your[-_ ]?(api[-_ ]?key|token|secret)''',
+]

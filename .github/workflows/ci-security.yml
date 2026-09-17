@@ -1,0 +1,28 @@
+name: ci-security
+
+# P0 security gate: scan for leaked secrets on every push and PR to main.
+# Uses the gitleaks OSS binary via Docker — the gitleaks-action needs a paid
+# license for some accounts and was erroring at setup. Scans the working tree
+# (--no-git) so your public, env-only Supabase anon key never trips it.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan for secrets (gitleaks)
+        run: |
+          docker run --rm -v "${{ github.workspace }}:/repo" \
+            zricethezav/gitleaks:latest detect \
+            --source /repo --no-git --config /repo/.gitleaks.toml --redact --verbose --exit-code 1
